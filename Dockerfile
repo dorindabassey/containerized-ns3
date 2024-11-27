@@ -1,23 +1,30 @@
-# Use a base image for NS3
-FROM ubuntu:20.04
+# Dockerfile for NS3
+FROM fedora:40
 
 ARG DEBIAN_FRONTEND=noninteractive
+# Install prerequisites
+RUN dnf -y update && dnf install -y gcc gcc-c++ python3 python3-pip cmake git wget iputils iproute net-tools nmap netcat
 
-# Install necessary dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3 \
-    python3-pip \
-    git \
-    cmake \
-    && apt-get clean
+# Set working directory
+WORKDIR /tmp
 
-# Set the working directory
-WORKDIR /ns-3-dev
+# Download and install NS3
+RUN git clone https://gitlab.com/nsnam/ns-3-dev.git
+WORKDIR /tmp/ns-3-dev/
+RUN git checkout -b ns-3.43-branch ns-3.43
 
-# Copy your NS-3 workspace into the container
-COPY ./ns-3-dev /ns-3-dev
+RUN rm -rf /tmp/ns-3-dev/cmake-cache
+RUN ./ns3 configure  --build-profile=debug --enable-examples --enable-tests && ./ns3 build
 
-# Set the entry point to bash
-# ENTRYPOINT ["bash"]
+# Add NS3 binaries to PATH
+ENV PATH="/root/ns-3/build:$PATH"
 
+# Copy simulation script
+COPY scratch/ns3_app_onesubnet.cc /tmp/ns-3-dev/scratch/
+COPY scratch/container-ns3-app.cc /tmp/ns-3-dev/scratch/
+
+# Build the simulation
+RUN cd /tmp/ns-3-dev/ && ./ns3 build
+
+# Run simulation by default
+CMD ["bash"]
