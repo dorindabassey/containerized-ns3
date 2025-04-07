@@ -3,7 +3,7 @@ FROM fedora:40
 
 ARG DEBIAN_FRONTEND=noninteractive
 # Install prerequisites
-RUN dnf -y update && dnf install -y gcc gcc-c++ python3 python3-pip cmake git wget iputils iproute net-tools nmap netcat
+RUN dnf -y update && dnf install -y gcc gcc-c++ python3 python3-pip cmake git wget iputils iproute net-tools nmap netcat tcpdump
 
 # Set working directory
 WORKDIR /tmp
@@ -22,6 +22,7 @@ ENV PATH="/root/ns-3/build:$PATH"
 # Copy simulation script
 COPY scratch/ns3_app_onesubnet.cc /tmp/ns-3-dev/scratch/
 COPY scratch/container-ns3-app.cc /tmp/ns-3-dev/scratch/
+COPY scratch/container-ns3-app-security.cc /tmp/ns-3-dev/scratch/
 
 # Build the simulation
 RUN cd /tmp/ns-3-dev/ && ./ns3 build
