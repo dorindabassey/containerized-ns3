@@ -75,7 +75,6 @@ public:
   {
     Ptr<Packet> packet = item->GetPacket ()->Copy ();
 
-    std::cout << " do classify: " << std::endl;
     Ipv4Header ipHeader;
     packet->RemoveHeader (ipHeader);  // Must remove before reading transport layer
 
@@ -84,8 +83,8 @@ public:
 
     if (udpHeader.GetDestinationPort () == 8080)
     {
-      std::cout << " do classify udpport is 7080: " << std::endl;
-      NS_LOG_INFO ("UdpPortFilter: allowing UDP packet to port 7080");
+      std::cout << " udpport is 8080: " << std::endl;
+      NS_LOG_INFO ("UdpPortFilter: allowing UDP packet to port 8080");
       return 0; // allow it
     }
 
