@@ -1,0 +1,46 @@
+podman build -t ns3-app .
+
+podman run --privileged --name test_ext_dev --network none --publish-all=true -itd ns3-app
+
+podman run --privileged --name test_ext_dev --network none --publish-all=true --cap-drop=ALL --cap-add=NET_ADMIN --pids-limit=100 --tmpfs /tmp --user ns3user --security-opt no-new-privileges -itd ns3-app
+
+#with cpu and memory limits
+podman run --privileged --name test_ext_dev --network none --publish-all=true --cap-drop=ALL --cap-add=NET_ADMIN --pids-limit=100 --tmpfs /tmp --user ns3user --security-opt no-new-privileges --memory=512m --memory-swap=512m --cpus=1.0 -itd ns3-app
+
+sudo ip link add dev bridge-x type bridge
+sudo ip tuntap add dev tap-x mode tap
+sudo ifconfig tap-x 0.0.0.0 promisc up
+sudo ip link set tap-x master bridge-x
+sudo ifconfig bridge-x 192.168.2.5 netmask 255.255.255.0 up
+sudo ifconfig bridge-x up
+pid_ext_dev=$(podman inspect --format '{{ .State.Pid }}' test_ext_dev)
+echo $pid_ext_dev
+sudo mkdir -p /var/run/netns
+sudo ln -s /proc/$pid_ext_dev/ns/net /var/run/netns/$pid_ext_dev
+sudo ip link add internal-dev type veth peer name external-dev
+sudo ip link set internal-dev master bridge-x
+sudo ip link set internal-dev up
+sudo ip link set external-dev netns $pid_ext_dev
+sudo ip netns exec $pid_ext_dev ip link set dev external-dev name eth0
+sudo ip netns exec $pid_ext_dev ip link set eth0 address 54:34:88:5D:61:BD
+sudo ip netns exec $pid_ext_dev ip link set eth0 up
+sudo ip netns exec $pid_ext_dev ip addr add 192.168.2.6/24 dev eth0
+sudo ip netns exec $pid_ext_dev ip route add default via 192.168.2.2 dev eth0
+
+podman run --privileged --name test_ns3_app --net=container:test_ext_dev --publish-all=true --cap-drop=ALL --cap-add=NET_ADMIN --pids-limit=100 --tmpfs /tmp --user ns3user --security-opt no-new-privileges -itd ns3-app
+
+#with cpu and memory limits
+podman run --privileged --name test_ns3_app --network none --publish-all=true --cap-drop=ALL --cap-add=NET_ADMIN --pids-limit=100 --tmpfs /tmp --user ns3user --security-opt no-new-privileges --memory=512m --memory-swap=512m --cpus=1.0 -itd ns3-app
+
+// enter inside container 1(test_ext_dev) and run the following, no need for sudo as it is not root:
+ip link add dev bridge-x type bridge
+ip tuntap add dev tap-x mode tap
+ifconfig tap-x 0.0.0.0 promisc up
+ip link set tap-x master bridge-x
+ifconfig bridge-x 192.168.2.5 netmask 255.255.255.0 up
+ifconfig bridge-x up
+
+nc -lvu 8080
+
+inside container 2(test_ns3_app) do this:
+./ns3 run scratch/container-ns3-app.cc
